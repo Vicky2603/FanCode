@@ -1,51 +1,48 @@
-import requests
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.ui import WebDriverWait
 
-BASE_URL = "https://jsonplaceholder.typicode.com/"
+driver = webdriver.Chrome()
+driver.maximize_window()
+driver.get("https://www.amazon.in")
 
-def json_content(end_point):
-    response = requests.get(BASE_URL+end_point)
-    json_content = response.json()
-    return json_content
+# Enter "lg soundbar" in the search box and click on search button
+driver.find_element(By.XPATH, "//input[@id='twotabsearchtextbox']").send_keys("lg soundbar")
+driver.find_element(By.XPATH, "//input[@id='nav-search-submit-button']").click()
 
-def get_fancode_users(end_point, user_id):
-    user_id -= 1
-    json = json_content(end_point)
-    
-    lat = float(json[user_id]['address']['geo']['lat'])
-    lng = float(json[user_id]['address']['geo']['lng'])
-    if (lat <= 40 and lat >= -5):
-        if (lng <= 100 and lng >= 5):
-            return json[user_id]
-    return False
+wait = WebDriverWait(driver, 10)
 
+# Added wait - until the search result page is not loaded
+wait.until(EC.presence_of_element_located((By.XPATH, "//span[@class='a-color-state a-text-bold']")))
 
-def get_todos_with_user_id(end_point, user_id):
-#     user_id -= 1
-    json = json_content(end_point)
-    json = json[20*(user_id-1): 20*user_id]
-    completed_count = 0
-    not_Completed_count = 0
-    total_count = 0
-    
-    for i in range(len(json)):
-        if json[i]['completed'] == True:
-            completed_count += 1
-        elif json[i]['completed'] == False:
-            not_Completed_count += 1
-        total_count += 1
-        
-    percentage = (completed_count / total_count) * 100
-    if percentage >= 50:
-        return 'User Completed task more than 50%'
-    return f'Incomplete task is more than the completed task. user has only {percentage}%'
+products = driver.find_elements(By.XPATH, "//div[@class='a-section a-spacing-small a-spacing-top-small']")
+
+hashmap = {}
+
+for i in range(1, len(products)):
+    price_xpath = f"(//div[@class='a-section a-spacing-small a-spacing-top-small'])[{i+1}]//span[@class='a-price']"
+    name_xpath = f"(//div[@class='a-section a-spacing-small a-spacing-top-small'])[{i+1}]//span[@class='a-size-medium a-color-base a-text-normal']"
+    try:
+        name_is_displayed = driver.find_element(By.XPATH, name_xpath).is_displayed()
+        if name_is_displayed:
+            product_name = driver.find_element(By.XPATH, name_xpath).text
+            hashmap[product_name] = 0   # Initially will assign as zero, because if product_price is not present then by default 0 will be initialized
+
+        element_is_displayed = driver.find_element(By.XPATH, price_xpath).is_displayed()
+        if element_is_displayed:
+            product_price = driver.find_element(By.XPATH, price_xpath).text.replace("₹", "").replace(",", "")
+            hashmap[product_name] = int(product_price)
+            
+    except Exception as e:
+        pass
 
 
+hashmap = dict(sorted(hashmap.items(), key=lambda item: item[1]))
 
-if __name__ == '__main__':
-    user_id = 7 
-    result = get_fancode_users('users', user_id)
-    
-    if result:  # if condition is to check the fancode user
-        print(get_todos_with_user_id('todos', user_id))
-    else:
-        print("Not a fancode user")
+# Output according to the sample provided in the Google Form
+for key, val in hashmap.items():
+    print(val, key)
+    print()
+
+driver.close()
